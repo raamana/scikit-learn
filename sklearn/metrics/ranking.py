@@ -295,6 +295,10 @@ def _binary_clf_curve(y_true, y_score, pos_label=None, sample_weight=None):
 
     # ensure binary classification if pos_label is not specified
     classes = np.unique(y_true)
+    if len(classes) > 2:
+        raise ValueError('Current implementation can handle '
+                         'binary classifications tasks only. Got %d classes' % len(classes))
+
     if (pos_label is None and
         not (array_equal(classes, [0, 1]) or
              array_equal(classes, [-1, 1]) or
@@ -302,8 +306,13 @@ def _binary_clf_curve(y_true, y_score, pos_label=None, sample_weight=None):
              array_equal(classes, [-1]) or
              array_equal(classes, [1]))):
         raise ValueError("Data is not binary and pos_label is not specified")
+    elif pos_label is not None and pos_label not in classes:
+        raise ValueError("Specified positive label %d doesn't belong to "
+                         "the supplied label: %s" % pos_label, classes.tostring())
     elif pos_label is None:
-        pos_label = 1.
+        # Choice of 1 is arbitrary that doesn't generalize
+        # moreover the next statement y_true == pos_label would not have any True cases if pos_label not in classes
+        pos_label = classes[-1]
 
     # make y_true a boolean vector
     y_true = (y_true == pos_label)
