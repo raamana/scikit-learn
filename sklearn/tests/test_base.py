@@ -14,6 +14,7 @@ from sklearn.utils.testing import assert_raises
 from sklearn.utils.testing import assert_no_warnings
 from sklearn.utils.testing import assert_warns_message
 from sklearn.utils.testing import assert_dict_equal
+from sklearn.utils.testing import ignore_warnings
 
 from sklearn.base import BaseEstimator, clone, is_classifier
 from sklearn.svm import SVC
@@ -58,19 +59,6 @@ class ModifyInitParams(BaseEstimator):
     """
     def __init__(self, a=np.array([0])):
         self.a = a.copy()
-
-
-class DeprecatedAttributeEstimator(BaseEstimator):
-    def __init__(self, a=None, b=None):
-        self.a = a
-        if b is not None:
-            DeprecationWarning("b is deprecated and renamed 'a'")
-            self.a = b
-
-    @property
-    @deprecated("Parameter 'b' is deprecated and renamed to 'a'")
-    def b(self):
-        return self._b
 
 
 class Buggy(BaseEstimator):
@@ -218,19 +206,6 @@ def test_get_params():
     assert_raises(ValueError, test.set_params, a__a=2)
 
 
-def test_get_params_deprecated():
-    # deprecated attribute should not show up as params
-    est = DeprecatedAttributeEstimator(a=1)
-
-    assert_true('a' in est.get_params())
-    assert_true('a' in est.get_params(deep=True))
-    assert_true('a' in est.get_params(deep=False))
-
-    assert_true('b' not in est.get_params())
-    assert_true('b' not in est.get_params(deep=True))
-    assert_true('b' not in est.get_params(deep=False))
-
-
 def test_is_classifier():
     svc = SVC()
     assert_true(is_classifier(svc))
@@ -299,7 +274,7 @@ def test_clone_pandas_dataframe():
         def fit(self, X, y=None):
             pass
 
-        def transform(self, X, y=None):
+        def transform(self, X):
             pass
 
     # build and clone estimator
@@ -440,6 +415,7 @@ class SingleInheritanceEstimator(BaseEstimator):
         return data
 
 
+@ignore_warnings(category=(UserWarning))
 def test_pickling_works_when_getstate_is_overwritten_in_the_child_class():
     estimator = SingleInheritanceEstimator()
     estimator._attribute_not_pickled = "this attribute should not be pickled"
