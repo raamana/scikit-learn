@@ -20,6 +20,7 @@ from .externals.joblib import Parallel, delayed, Memory
 from .externals import six
 from .utils import tosequence
 from .utils.metaestimators import if_delegate_has_method
+from .model_selection import ShuffleSplit, cross_validate
 
 __all__ = ['Pipeline', 'FeatureUnion']
 
@@ -575,6 +576,36 @@ def _name_estimators(estimators):
             namecount[name] -= 1
 
     return list(zip(names, estimators))
+
+
+def compare(pipe_list, X, y, cv_choice=None, perf_metrics = None):
+    """ Compares two pipelines and whether one is significantly better than other.
+
+    Performs a non-parametric comparison of predictive performance of two pipelines
+    evaluated from bootstrapped distributions of cross-validated performance.
+
+    """
+
+    num_pipelines = len(pipe_list)
+    if num_pipelines < 2:
+        raise ValueError('Atleast two pipelines are required for comparison.')
+
+    if cv_choice is None:
+        cv = ShuffleSplit(test_size=0.5, n_splits=250, random_state=1)
+
+    if perf_metrics is None:
+        perf_metrics = ['accuracy_score', 'balanced_accuracy', 'auc', 'f1_score']
+
+    pipe_scores = np.empty([num_pipelines, 1])
+    for counter, pipe in enumerate(pipe_list):
+        # this would be replaced later by local implementation, wherein we control
+        # which train/test sets pipelines will be trained and tested on for better estimation
+        pipe_scores[counter] = cross_validate(pipe, X, y, scoring = perf_metrics,
+                                    cv = cv_choice)
+
+    signif_matrix, comparison_report = non_parametric_friedman(pipe_scores, posthoc= 'nemenyi')
+
+    return signif_matrix, comparison_report
 
 
 def make_pipeline(*steps):
